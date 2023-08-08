@@ -31,12 +31,12 @@ jobs:
           ISSUE_TITLE_PARSED: ${{steps.remove_quotations.outputs.replaced}}
         id: check-info
         run: |
-          echo "content_analysis_response=$(pwsh .\\.github\\scripts\\title_analyzer.ps1 "${{ env.ISSUE_TITLE_PARSED }}" )" >> $GITHUB_ENV
+          echo "content_analysis_response=$(pwsh .\\.github\\scripts\\title_analyzer.ps1 "$ISSUE_TITLE_PARSED" )" >> $GITHUB_ENV
       - name: Label issue
         if: env.content_analysis_response != 'Valid'
         #Uses DYNAMOBOTTOKEN to allow interaction between repos
         run: |
-          curl -v -u admin:${{ secrets.DYNAMOBOTTOKEN }} -d '{"labels": ["${{env.content_analysis_response}}"]}' ${{ github.event.issue.url }}/labels
+          curl -v -u admin:${{ secrets.DYNAMOBOTTOKEN }} -d '{"labels": ["$content_analysis_response"]}' ${{ github.event.issue.url }}/labels
   
   #This job will scan the issue content to determing if more information is needed and act acordingly
   #Will only run if the "redirectIssue" job outputted a 'Valid' result
@@ -102,10 +102,10 @@ jobs:
       #Checks for missing information inside the issue content
       - name: Check Information
         env:
-          ISSUE_TITLE_PARSED: ${{steps.remove_quotations.outputs.replaced}}
+          ISSUE_BODY_PARSED: ${{steps.remove_quotations.outputs.replaced}}
         id: check-info
         run: |
-          echo "analysis_response=$(pwsh .\\.github\\scripts\\issue_analyzer.ps1 "${{ env.template }}" "${{ env.ISSUE_TITLE_PARSED }}" "${{ env.acceptable_missing_info }}" )" >> $GITHUB_ENV
+          echo "analysis_response=$(pwsh .\\.github\\scripts\\issue_analyzer.ps1 "${{ env.template }}" "$ISSUE_BODY_PARSED" "${{ env.acceptable_missing_info }}" )" >> $GITHUB_ENV
       
       #Closes the issue if the analysis response is "Empty"
       - name: Close issue
@@ -119,7 +119,7 @@ jobs:
         if: ((env.analysis_response != 'Valid') && (env.analysis_response != 'Empty') && (github.event.action == 'opened'))
         run: |
           curl -v -u admin:${{ secrets.GITHUB_TOKEN }} -d '{"labels": ["${{env.issue_label}}"]}' ${{ github.event.issue.url }}/labels
-          curl -v -u admin:${{ secrets.GITHUB_TOKEN }} -d '{"body": "${{env.comment_intro}} ${{env.needs_more_info_comment}} ${{env.specific_info}} ${{env.analysis_response}}.\n\n${{env.info_needed}}"}' ${{ github.event.issue.url }}/comments
+          curl -v -u admin:${{ secrets.GITHUB_TOKEN }} -d '{"body": "${{env.comment_intro}} ${{env.needs_more_info_comment}} ${{env.specific_info}} $analysis_response .\n\n${{env.info_needed}}"}' ${{ github.event.issue.url }}/comments
       
       #Removes the "needs more info" label if the issue has the missing information
       - name: Unlabel updated issue

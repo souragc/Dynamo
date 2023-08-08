@@ -34,10 +34,10 @@ jobs:
     #Checks the message looking for a cherry-pick request and extracts the target branch name
     - name: Check Information
       env:
-          ISSUE_BODY_PARSED: ${{steps.remove_quotations.outputs.replaced}}
+          COMMIT_MESSAGE: ${{steps.remove_quotations.outputs.replaced}}
       id: check-info
       run: |
-        echo "destination_branch=$(pwsh .\\.github\\scripts\\cherry_pick_check.ps1 "${{ env.ISSUE_BODY_PARSED }}" )" >> $GITHUB_ENV
+        echo "destination_branch=$(pwsh .\\.github\\scripts\\cherry_pick_check.ps1 "$COMMIT_MESSAGE" )" >> $GITHUB_ENV
     
       #If a target branch was found will run the action
     - if: env.destination_branch != 'invalid'
@@ -45,22 +45,21 @@ jobs:
       run: |
         git config user.name "${{env.user_name}}"
         git fetch --all
-        git checkout -b ${{env.auto_branch}} origin/${{env.destination_branch}}
+        git checkout -b ${{env.auto_branch}} origin/$destination_branch
         git cherry-pick -x ${{github.event.after}} --strategy-option theirs
         git push -u origin ${{env.auto_branch}}
-        hub pull-request -b "${{env.destination_branch}}" -h "${{env.auto_branch}}" -m "${{env.pr_message}}"
+        hub pull-request -b "$destination_branch" -h "${{env.auto_branch}}" -m "$PR_MESSAGE"
       env: 
         #Token used for the pull request. Corresponds to the DynamoBot account
         GITHUB_TOKEN: ${{secrets.DYNAMOBOTTOKEN}}
-        ISSUE_BODY_PARSED: ${{steps.remove_quotations.outputs.replaced}}
         #This represents the title and description of the pr in Markdown format
         #Everything before the first blank line will be the title
         #Everything after will be included in the description
-        pr_message: |
+        PR_MESSAGE: |
                   Cherry-Pick from commit: ${{github.event.after}}
 
                   ### Cherry-picking: 
                   [Commit](https://github.com/DynamoDS/Dynamo/commit/${{github.event.after}})
                   
                   ### Pull request:
-                  ${{ env.ISSUE_BODY_PARSED }}
+                  ${{steps.remove_quotations.outputs.replaced}}
